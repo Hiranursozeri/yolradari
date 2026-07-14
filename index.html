@@ -256,8 +256,8 @@
   </header>
 
   <div class="route-picker">
-    <button class="route-btn active" data-route="ordu">İstanbul → Ordu</button>
-    <button class="route-btn" data-route="luleburgaz">İstanbul → Lüleburgaz</button>
+ <button class="route-btn active" data-route="ordu" id="btnOrdu">İstanbul → Ordu</button>
+ <button class="route-btn" data-route="luleburgaz" id="btnLuleburgaz">İstanbul → Lüleburgaz</button>
   </div>
 <button class="ctrl-btn" id="reverseBtn" style="margin-top:8px; width:100%;">↕ Yön Değiştir (Gidiş / Dönüş)</button>
   <div class="radar-wrap">
@@ -374,12 +374,17 @@ ordu: {
 }
 };
 function updateRouteButtonLabels(){
-  const ordu = ROUTES.ordu.cities;
-  document.getElementById('btnOrdu').textContent = `${ordu[0].name} → ${ordu[ordu.length-1].name}`;
-  const lb = ROUTES.luleburgaz.cities;
-  document.getElementById('btnLuleburgaz').textContent = `${lb[0].name} → ${lb[lb.length-1].name}`;
+  const btnOrdu = document.getElementById('btnOrdu');
+  const btnLuleburgaz = document.getElementById('btnLuleburgaz');
+  if(btnOrdu){
+    const ordu = ROUTES.ordu.cities;
+    btnOrdu.textContent = `${ordu[0].name} → ${ordu[ordu.length-1].name}`;
+  }
+  if(btnLuleburgaz){
+    const lb = ROUTES.luleburgaz.cities;
+    btnLuleburgaz.textContent = `${lb[0].name} → ${lb[lb.length-1].name}`;
+  }
 }
-
 let currentRouteKey = "ordu";
 let map, routeLine, carDummyPos, watchId, demoInterval;
 let lastLatLng = null, lastHeading = 0;
@@ -637,15 +642,29 @@ function startDemo(){
   const r = ROUTES[currentRouteKey];
   const pts = r.cities;
   let segIdx = 0, t = 0;
+  const demoBtn = document.getElementById('demoBtn');
+  demoBtn.textContent = "Demo Modunu Durdur";
+
   demoInterval = setInterval(()=>{
     const a = pts[segIdx], b = pts[segIdx+1];
-    if(!b){ clearInterval(demoInterval); return; }
+    if(!b){
+      // rota bitti
+      clearInterval(demoInterval);
+      demoInterval = null;
+      demoBtn.textContent = "Demo Modu (test için)";
+      document.getElementById('curCity').textContent = `${pts[pts.length-1].name} — Varış noktasına ulaşıldı ✓`;
+      const pulse = document.getElementById('radarPulse');
+      const banner = document.getElementById('alertBanner');
+      pulse.classList.remove('active');
+      banner.classList.remove('show');
+      return;
+    }
     t += 0.03;
     if(t >= 1){ t = 0; segIdx++; return; }
     const lat = a.lat + (b.lat-a.lat)*t;
     const lng = a.lng + (b.lng-a.lng)*t;
     const hdg = bearing(a.lat,a.lng,b.lat,b.lng);
-    const simSpeed = r.speedLimit + (Math.random()*30 - 10); // bazen limit üstü, test için
+    const simSpeed = r.speedLimit + (Math.random()*30 - 10);
     updatePosition(lat, lng, hdg, simSpeed);
   }, 400);
 }
@@ -661,7 +680,15 @@ document.querySelectorAll('.route-btn').forEach(btn=>{
   });
 });
 document.getElementById('startBtn').addEventListener('click', startRealTracking);
-document.getElementById('demoBtn').addEventListener('click', startDemo);
+document.getElementById('demoBtn').addEventListener('click', ()=>{
+  if(demoInterval){
+    clearInterval(demoInterval);
+    demoInterval = null;
+    document.getElementById('demoBtn').textContent = "Demo Modu (test için)";
+  } else {
+    startDemo();
+  }
+});
 document.getElementById('reverseBtn').addEventListener('click', ()=>{
   ROUTES[currentRouteKey].cities.reverse();
   drawRoute(currentRouteKey);
