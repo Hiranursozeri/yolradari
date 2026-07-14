@@ -357,21 +357,28 @@ ordu: {
   ]
 },
   luleburgaz: {
-    name: "İstanbul → Lüleburgaz",
-    speedLimit: 120,
-    cities: [
-      {name:"İstanbul", lat:41.0082, lng:28.9784},
-      {name:"Silivri", lat:41.0736, lng:28.2469},
-      {name:"Çorlu", lat:41.1594, lng:27.8017},
-      {name:"Lüleburgaz", lat:41.4082, lng:27.3592},
-    ],
-     stops: [],
-    radars: [
-  {lat:41.0000, lng:28.7200, label:"Avcılar–Beylikdüzü D-100 hız koridoru", type:"koridor", limit:90},
-  {lat:41.0600, lng:28.4000, label:"Silivri çevresi D-100 sabit radar (tahmini)", type:"sabit", limit:110},
-]
-  }
+  name: "İstanbul → Lüleburgaz",
+  speedLimit: 120,
+  cities: [
+    {name:"İstanbul (Büyükçekmece)", lat:41.0200, lng:28.5800},
+    {name:"Silivri", lat:41.0736, lng:28.2469},
+    {name:"Çorlu", lat:41.1594, lng:27.8017},
+    {name:"Velimeşe", lat:41.1500, lng:27.6500},
+    {name:"Lüleburgaz", lat:41.4082, lng:27.3592},
+  ],
+  stops: [],
+  radars: [
+    {lat:41.0600, lng:28.4500, label:"Silivri D-100 sabit radar (tahmini)", type:"sabit", limit:110},
+    {lat:41.1594, lng:27.8017, label:"Çorlu çevre yolu EDS koridoru", type:"koridor", limit:110},
+  ]
+}
 };
+function updateRouteButtonLabels(){
+  const ordu = ROUTES.ordu.cities;
+  document.getElementById('btnOrdu').textContent = `${ordu[0].name} → ${ordu[ordu.length-1].name}`;
+  const lb = ROUTES.luleburgaz.cities;
+  document.getElementById('btnLuleburgaz').textContent = `${lb[0].name} → ${lb[lb.length-1].name}`;
+}
 
 let currentRouteKey = "ordu";
 let map, routeLine, carDummyPos, watchId, demoInterval;
@@ -408,15 +415,19 @@ let cityMarkers = [], radarMarkers = [];
 // ---------- OpenStreetMap Overpass API'den gerçek radar verisi çekme ----------
 // ---------- Anlık konuma göre yakın radarları çek (rotadan bağımsız) ----------
 let lastFetchedLatLng = null;
+let lastFetchTime = 0;
 let cachedNearbyRadars = [];
 
 async function fetchNearbyRadars(lat, lng, radiusKm = 15){
-  // Son çekilen konumdan 5 km'den az uzaklaştıysak tekrar sorgulama (gereksiz istek atmasın)
+  const now = Date.now();
+  // en az 8 km hareket ETMİŞ olmalı VE son sorgudan en az 8 saniye geçmiş olmalı
   if(lastFetchedLatLng){
     const moved = haversineKm(lastFetchedLatLng.lat, lastFetchedLatLng.lng, lat, lng);
-    if(moved < 5) return cachedNearbyRadars;
+    if(moved < 8 || (now - lastFetchTime) < 8000) return cachedNearbyRadars;
   }
   lastFetchedLatLng = {lat, lng};
+  lastFetchTime = now;
+  // ... (fonksiyonun geri kalanı aynı kalsın)
 
   const d = radiusKm / 111; // km -> derece kaba çevrim
   const south = lat - d, north = lat + d, west = lng - d, east = lng + d;
@@ -552,6 +563,7 @@ async function updatePosition(lat, lng, headingDeg, speedKmh){
     const d = haversineKm(lat,lng,rd.lat,rd.lng);
     if(d < nearestRadarDist){ nearestRadarDist = d; nearestRadar = rd; }
   });
+  if(!window._lastAlertShown) window._lastAlertShown = 0;
   const pulse = document.getElementById('radarPulse');
   const banner = document.getElementById('alertBanner');
   if(nearestRadar && nearestRadarDist < RADAR_WARN_RADIUS_KM){
@@ -560,7 +572,15 @@ async function updatePosition(lat, lng, headingDeg, speedKmh){
     const tipEtiket = {sabit:"Sabit Radar", eds:"EDS Kamerası", koridor:"Hız Koridoru"}[nearestRadar.type] || "Denetim Noktası";
     document.getElementById('alertText').textContent = `${tipEtiket}: ${nearestRadar.label} — yaklaşık ${nearestRadarDist.toFixed(1)} km, limit ${nearestRadar.limit} km/s`;
     beep(nearestRadarDist);
-  } else {
+  } if(nearestRadar && nearestRadarDist < RADAR_WARN_RADIUS_KM){
+    pulse.classList.add('active');
+    banner.classList.add('show');
+    window._lastAlertShown = Date.now();
+    const tipEtiket = {sabit:"Sabit Radar", eds:"EDS Kamerası", koridor:"Hız Koridoru"}[nearestRadar.type] || "Denetim Noktası";
+    document.getElementById('alertText').textContent = `${tipEtiket}: ${nearestRadar.label} — yaklaşık ${nearestRadarDist.toFixed(1)} km, limit ${nearestRadar.limit} km/s`;
+    beep(nearestRadarDist);
+  } else if(Date.now() - window._lastAlertShown > 6000){
+    // en az 6 saniye ekranda kalsın, sonra kapansın
     pulse.classList.remove('active');
     banner.classList.remove('show');
   }
@@ -646,8 +666,10 @@ document.getElementById('reverseBtn').addEventListener('click', ()=>{
   ROUTES[currentRouteKey].cities.reverse();
   drawRoute(currentRouteKey);
   if(demoInterval) clearInterval(demoInterval);
+  updateRouteButtonLabels();
 });
 initMap();
+updateRouteButtonLabels();
 </script>
 </body>
 </html>
