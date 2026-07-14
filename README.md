@@ -18,10 +18,11 @@ verilerini GPS konumuyla karşılaştırarak çalışır.
 - HTML / CSS / JavaScript
 - Leaflet.js (harita)
 - Geolocation API
+## Veri kaynağı ve sınırlamalar
+Radar/EDS noktaları, EGM ve trafik hukuku kaynaklarından derlenen **isim bazlı bilgilerdir**;
+resmi kurumlar hassas GPS koordinatı yayınlamadığı için koordinatlar yaklaşıktır.
+Mobil (taşınabilir) radarlar bu listede yer almaz, konumları gün içinde değişir.
+Seyahat öncesi güncel kontrol için: https://www.icisleri.gov.tr/iller-arasi-radar-ve-kontrol-noktasi-uygulama-sayilari
 
 ## Durum
-<<<<<<< HEAD
 🚧 Geliştirme aşamasında
-=======
-🚧 Geliştirme aşamasında
->>>>>>> 1556549e6884729d337def01ef750729d5a4c1ba

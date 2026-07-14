@@ -322,10 +322,16 @@ const ROUTES = {
       {name:"Ordu", lat:40.9839, lng:37.8764},
     ],
     radars: [
-      {lat:40.9950, lng:29.4200, label:"TEM Otoyolu - sabit radar"},
-      {lat:40.8000, lng:30.7000, label:"D-100 - sabit radar"},
-      {lat:41.2000, lng:35.0000, label:"Karadeniz yolu - sabit radar"},
-    ]
+  {lat:41.0000, lng:28.7200, label:"Avcılar–Beylikdüzü D-100 hız koridoru", type:"koridor", limit:90},
+  {lat:40.8020, lng:29.4300, label:"Gebze / Öztürkler Kavşağı EDS koridoru", type:"koridor", limit:110},
+  {lat:40.7654, lng:29.9200, label:"İzmit merkez, İstanbul Cd. EDS (şehir içi)", type:"eds", limit:50},
+  {lat:40.7450, lng:29.8300, label:"Derince–Kuruçeşme EDS koridoru", type:"koridor", limit:82},
+  {lat:40.7700, lng:29.6100, label:"Hereke Gişeleri–Körfez EDS", type:"eds", limit:110},
+  {lat:40.6950, lng:30.2650, label:"Sapanca geçişi sabit radar", type:"sabit", limit:110},
+  {lat:40.7569, lng:30.3800, label:"Adapazarı şehir girişi EDS", type:"eds", limit:50},
+  {lat:40.7990, lng:30.7450, label:"Hendek kavşağı sabit radar", type:"sabit", limit:90},
+  {lat:40.8438, lng:31.1400, label:"Düzce şehir girişi EDS", type:"eds", limit:70},
+]
   },
   luleburgaz: {
     name: "İstanbul → Lüleburgaz",
@@ -337,9 +343,9 @@ const ROUTES = {
       {name:"Lüleburgaz", lat:41.4082, lng:27.3592},
     ],
     radars: [
-      {lat:41.0600, lng:28.5000, label:"TEM Otoyolu - sabit radar"},
-      {lat:41.2200, lng:27.9500, label:"D-100 - sabit radar"},
-    ]
+  {lat:41.0000, lng:28.7200, label:"Avcılar–Beylikdüzü D-100 hız koridoru", type:"koridor", limit:90},
+  {lat:41.0600, lng:28.4000, label:"Silivri çevresi D-100 sabit radar (tahmini)", type:"sabit", limit:110},
+]
   }
 };
 
@@ -370,7 +376,46 @@ function initMap(){
 }
 
 let cityMarkers = [], radarMarkers = [];
-function drawRoute(key){
+// ---------- OpenStreetMap Overpass API'den gerçek radar verisi çekme ----------
+async function fetchOSMRadars(routeKey){
+  const r = ROUTES[routeKey];
+  const lats = r.cities.map(c=>c.lat), lngs = r.cities.map(c=>c.lng);
+  const south = Math.min(...lats) - 0.15;
+  const north = Math.max(...lats) + 0.15;
+  const west  = Math.min(...lngs) - 0.15;
+  const east  = Math.max(...lngs) + 0.15;
+
+  const query = `
+    [out:json][timeout:25];
+    (
+      node["highway"="speed_camera"](${south},${west},${north},${east});
+      node["enforcement"="maxspeed"](${south},${west},${north},${east});
+    );
+    out body;
+  `;
+
+  try{
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: 'data=' + encodeURIComponent(query)
+    });
+    const data = await res.json();
+    const osmRadars = data.elements.map(el => ({
+      lat: el.lat,
+      lng: el.lon,
+      label: el.tags?.name || "OSM: Sabit radar/EDS",
+      type: "sabit",
+      limit: parseInt(el.tags?.maxspeed) || r.speedLimit,
+      source: "OpenStreetMap"
+    }));
+    console.log(`OSM'den ${osmRadars.length} radar noktası bulundu.`);
+    return osmRadars;
+  }catch(e){
+    console.warn("OSM verisi çekilemedi, elle girilen liste kullanılacak.", e);
+    return [];
+  }
+}
+async function drawRoute(key){
   const r = ROUTES[key];
   if(routeLine) map.removeLayer(routeLine);
   cityMarkers.forEach(m=>map.removeLayer(m)); cityMarkers=[];
@@ -383,8 +428,19 @@ function drawRoute(key){
     const m = L.circleMarker([c.lat,c.lng], {radius:6, color:'#F2B84B', fillColor:'#F2B84B', fillOpacity:1, weight:2}).addTo(map);
     cityMarkers.push(m);
   });
-  r.radars.forEach(rd=>{
+
+  // Önce elle girilen (bilinen) noktaları çiz
+  const manualRadars = r.radars;
+  manualRadars.forEach(rd=>{
     const m = L.circleMarker([rd.lat,rd.lng], {radius:5, color:'#FF7A3D', fillColor:'#FF7A3D', fillOpacity:0.9, weight:1}).addTo(map);
+    radarMarkers.push(m);
+  });
+
+  // Sonra OSM'den gelenleri ekle (asenkron, harita zaten görünür durumda kalır)
+  const osmRadars = await fetchOSMRadars(key);
+  r.activeRadars = [...manualRadars, ...osmRadars]; // uyarı sistemi bunu kullanacak
+  osmRadars.forEach(rd=>{
+    const m = L.circleMarker([rd.lat,rd.lng], {radius:5, color:'#4AB8FF', fillColor:'#4AB8FF', fillOpacity:0.9, weight:1}).addTo(map);
     radarMarkers.push(m);
   });
 
@@ -443,7 +499,7 @@ function updatePosition(lat, lng, headingDeg, speedKmh){
 
   // en yakın radara mesafe kontrolü
   let nearestRadar = null, nearestRadarDist = Infinity;
-  r.radars.forEach(rd=>{
+  (r.activeRadars || r.radars).forEach(rd=>{
     const d = haversineKm(lat,lng,rd.lat,rd.lng);
     if(d < nearestRadarDist){ nearestRadarDist = d; nearestRadar = rd; }
   });
@@ -452,7 +508,8 @@ function updatePosition(lat, lng, headingDeg, speedKmh){
   if(nearestRadar && nearestRadarDist < RADAR_WARN_RADIUS_KM){
     pulse.classList.add('active');
     banner.classList.add('show');
-    document.getElementById('alertText').textContent = `${nearestRadar.label} — yaklaşık ${nearestRadarDist.toFixed(1)} km`;
+    const tipEtiket = {sabit:"Sabit Radar", eds:"EDS Kamerası", koridor:"Hız Koridoru"}[nearestRadar.type] || "Denetim Noktası";
+document.getElementById('alertText').textContent = `${tipEtiket}: ${nearestRadar.label} — yaklaşık ${nearestRadarDist.toFixed(1)} km, limit ${nearestRadar.limit} km/s`;
     beep();
   } else {
     pulse.classList.remove('active');
