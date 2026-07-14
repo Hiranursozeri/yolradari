@@ -143,7 +143,7 @@
     position:absolute; inset:0;
     border-radius:50%;
     border: 3px solid var(--accent-warn);
-    animation: pulse 1.1s ease-out infinite;
+    animation: pulse 1.8s ease-out infinite;
   }
   @keyframes pulse{
     0%{ transform: scale(0.9); opacity: .9; }
@@ -259,7 +259,7 @@
     <button class="route-btn active" data-route="ordu">İstanbul → Ordu</button>
     <button class="route-btn" data-route="luleburgaz">İstanbul → Lüleburgaz</button>
   </div>
-
+<button class="ctrl-btn" id="reverseBtn" style="margin-top:8px; width:100%;">↕ Yön Değiştir (Gidiş / Dönüş)</button>
   <div class="radar-wrap">
     <div class="ring outer"></div>
     <div class="ring mid"></div>
@@ -652,7 +652,11 @@ document.querySelectorAll('.route-btn').forEach(btn=>{
 });
 document.getElementById('startBtn').addEventListener('click', startRealTracking);
 document.getElementById('demoBtn').addEventListener('click', startDemo);
-
+document.getElementById('reverseBtn').addEventListener('click', ()=>{
+  ROUTES[currentRouteKey].cities.reverse();
+  drawRoute(currentRouteKey);
+  if(demoInterval) clearInterval(demoInterval);
+});
 initMap();
 </script>
 </body>
