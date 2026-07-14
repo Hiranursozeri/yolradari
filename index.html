@@ -574,22 +574,14 @@ async function updatePosition(lat, lng, headingDeg, speedKmh){
   if(nearestRadar && nearestRadarDist < RADAR_WARN_RADIUS_KM){
     pulse.classList.add('active');
     banner.classList.add('show');
-    const tipEtiket = {sabit:"Sabit Radar", eds:"EDS Kamerası", koridor:"Hız Koridoru"}[nearestRadar.type] || "Denetim Noktası";
-    document.getElementById('alertText').textContent = `${tipEtiket}: ${nearestRadar.label} — yaklaşık ${nearestRadarDist.toFixed(1)} km, limit ${nearestRadar.limit} km/s`;
-    beep(nearestRadarDist);
-  } if(nearestRadar && nearestRadarDist < RADAR_WARN_RADIUS_KM){
-    pulse.classList.add('active');
-    banner.classList.add('show');
     window._lastAlertShown = Date.now();
     const tipEtiket = {sabit:"Sabit Radar", eds:"EDS Kamerası", koridor:"Hız Koridoru"}[nearestRadar.type] || "Denetim Noktası";
     document.getElementById('alertText').textContent = `${tipEtiket}: ${nearestRadar.label} — yaklaşık ${nearestRadarDist.toFixed(1)} km, limit ${nearestRadar.limit} km/s`;
     beep(nearestRadarDist);
   } else if(Date.now() - window._lastAlertShown > 6000){
-    // en az 6 saniye ekranda kalsın, sonra kapansın
     pulse.classList.remove('active');
     banner.classList.remove('show');
   }
-}
 
 function beep(distanceKm){
   // Yakınlaştıkça daha sık uyarsın: 1km altı = 2 sn'de bir, üstü = 4 sn'de bir
