@@ -214,6 +214,11 @@
     align-items:center; gap:8px;
   }
   .alert-banner.show{ display:flex; }
+  .stop-banner{
+  background: rgba(74,184,255,.12);
+  border-color: #4AB8FF;
+  color: #4AB8FF;
+}
 
   .controls{
     margin-top: 16px;
@@ -273,6 +278,9 @@
   <div class="alert-banner" id="alertBanner">
     ⚠ <span id="alertText">Yaklaşan radar noktası</span>
   </div>
+  <div class="alert-banner stop-banner" id="stopBanner">
+  ☕ <span id="stopText"></span>
+</div>
 
   <div class="status-grid">
     <div class="card">
@@ -308,31 +316,46 @@
 <script>
 // ---------- ROTA VERİLERİ (yaklaşık koordinatlar — sonra netleştirilebilir) ----------
 const ROUTES = {
-  ordu: {
-    name: "İstanbul → Ordu",
-    speedLimit: 110,
-    cities: [
-      {name:"İstanbul", lat:41.0082, lng:28.9784},
-      {name:"Kocaeli", lat:40.7654, lng:29.9408},
-      {name:"Sakarya", lat:40.7569, lng:30.4033},
-      {name:"Düzce", lat:40.8438, lng:31.1565},
-      {name:"Bolu", lat:40.7892, lng:31.6089},
-      {name:"Kastamonu", lat:41.3887, lng:33.7827},
-      {name:"Samsun", lat:41.2867, lng:36.3300},
-      {name:"Ordu", lat:40.9839, lng:37.8764},
-    ],
-    radars: [
-  {lat:41.0000, lng:28.7200, label:"Avcılar–Beylikdüzü D-100 hız koridoru", type:"koridor", limit:90},
-  {lat:40.8020, lng:29.4300, label:"Gebze / Öztürkler Kavşağı EDS koridoru", type:"koridor", limit:110},
-  {lat:40.7654, lng:29.9200, label:"İzmit merkez, İstanbul Cd. EDS (şehir içi)", type:"eds", limit:50},
-  {lat:40.7450, lng:29.8300, label:"Derince–Kuruçeşme EDS koridoru", type:"koridor", limit:82},
-  {lat:40.7700, lng:29.6100, label:"Hereke Gişeleri–Körfez EDS", type:"eds", limit:110},
-  {lat:40.6950, lng:30.2650, label:"Sapanca geçişi sabit radar", type:"sabit", limit:110},
-  {lat:40.7569, lng:30.3800, label:"Adapazarı şehir girişi EDS", type:"eds", limit:50},
-  {lat:40.7990, lng:30.7450, label:"Hendek kavşağı sabit radar", type:"sabit", limit:90},
-  {lat:40.8438, lng:31.1400, label:"Düzce şehir girişi EDS", type:"eds", limit:70},
-]
-  },
+ordu: {
+  name: "İstanbul → Ordu",
+  speedLimit: 110,
+  cities: [
+    {name:"İstanbul", lat:41.0082, lng:28.9784},
+    {name:"Gebze", lat:40.8024, lng:29.4306},
+    {name:"İzmit", lat:40.7654, lng:29.9408},
+    {name:"Sakarya", lat:40.7569, lng:30.4033},
+    {name:"Hendek", lat:40.7990, lng:30.7450},
+    {name:"Düzce", lat:40.8438, lng:31.1565},
+    {name:"Yeniçağa", lat:40.8102, lng:32.0392},
+    {name:"Gerede", lat:40.7975, lng:32.2058},
+    {name:"Çerkeş", lat:40.8125, lng:32.9114},
+    {name:"Kurşunlu", lat:40.8969, lng:33.3097},
+    {name:"Ilgaz", lat:41.1256, lng:33.6197},
+    {name:"Tosya", lat:41.0158, lng:34.0403},
+    {name:"Osmancık", lat:40.9633, lng:34.7967},
+    {name:"Merzifon", lat:40.8706, lng:35.4636},
+    {name:"Havza", lat:40.9647, lng:35.6733},
+    {name:"Çarşamba", lat:41.1911, lng:36.7275},
+    {name:"Terme", lat:41.2144, lng:36.9722},
+    {name:"Ünye", lat:41.1319, lng:37.2892},
+    {name:"Fatsa", lat:41.0286, lng:37.4922},
+    {name:"Ordu", lat:40.9839, lng:37.8764},
+  ],
+  stops: [
+    {name:"İsmetpaşa Kahvaltı Molası", lat:40.7975, lng:32.2058, note:"Gerede civarında ünlü kahvaltıcılar"},
+  ],
+  radars: [
+    {lat:41.0000, lng:28.7200, label:"Avcılar–Beylikdüzü D-100 hız koridoru", type:"koridor", limit:90},
+    {lat:40.8020, lng:29.4300, label:"Gebze / Öztürkler Kavşağı EDS koridoru", type:"koridor", limit:110},
+    {lat:40.7654, lng:29.9200, label:"İzmit merkez, İstanbul Cd. EDS (şehir içi)", type:"eds", limit:50},
+    {lat:40.7450, lng:29.8300, label:"Derince–Kuruçeşme EDS koridoru", type:"koridor", limit:82},
+    {lat:40.7700, lng:29.6100, label:"Hereke Gişeleri–Körfez EDS", type:"eds", limit:110},
+    {lat:40.6950, lng:30.2650, label:"Sapanca geçişi sabit radar", type:"sabit", limit:110},
+    {lat:40.7569, lng:30.3800, label:"Adapazarı şehir girişi EDS", type:"eds", limit:50},
+    {lat:40.7990, lng:30.7450, label:"Hendek kavşağı sabit radar", type:"sabit", limit:90},
+    {lat:40.8438, lng:31.1400, label:"Düzce şehir girişi EDS", type:"eds", limit:70},
+  ]
+},
   luleburgaz: {
     name: "İstanbul → Lüleburgaz",
     speedLimit: 120,
@@ -342,6 +365,7 @@ const ROUTES = {
       {name:"Çorlu", lat:41.1594, lng:27.8017},
       {name:"Lüleburgaz", lat:41.4082, lng:27.3592},
     ],
+     stops: [],
     radars: [
   {lat:41.0000, lng:28.7200, label:"Avcılar–Beylikdüzü D-100 hız koridoru", type:"koridor", limit:90},
   {lat:41.0600, lng:28.4000, label:"Silivri çevresi D-100 sabit radar (tahmini)", type:"sabit", limit:110},
@@ -372,18 +396,30 @@ function bearing(lat1, lon1, lat2, lon2){
 function initMap(){
   map = L.map('map', {zoomControl:false, attributionControl:false, dragging:false, scrollWheelZoom:false});
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {maxZoom:19}).addTo(map);
-  drawRoute(currentRouteKey);
+
+  // Haritanın boyutunu önce sabit bir görünümle başlat (infinite tiles hatasını önler)
+  map.setView([40.9, 30.5], 7);
+
+  // Konteyner boyutu tam oturduktan sonra haritayı yeniden ölçeklendir
+  setTimeout(()=>{ map.invalidateSize(); drawRoute(currentRouteKey); }, 150);
 }
 
 let cityMarkers = [], radarMarkers = [];
 // ---------- OpenStreetMap Overpass API'den gerçek radar verisi çekme ----------
-async function fetchOSMRadars(routeKey){
-  const r = ROUTES[routeKey];
-  const lats = r.cities.map(c=>c.lat), lngs = r.cities.map(c=>c.lng);
-  const south = Math.min(...lats) - 0.15;
-  const north = Math.max(...lats) + 0.15;
-  const west  = Math.min(...lngs) - 0.15;
-  const east  = Math.max(...lngs) + 0.15;
+// ---------- Anlık konuma göre yakın radarları çek (rotadan bağımsız) ----------
+let lastFetchedLatLng = null;
+let cachedNearbyRadars = [];
+
+async function fetchNearbyRadars(lat, lng, radiusKm = 15){
+  // Son çekilen konumdan 5 km'den az uzaklaştıysak tekrar sorgulama (gereksiz istek atmasın)
+  if(lastFetchedLatLng){
+    const moved = haversineKm(lastFetchedLatLng.lat, lastFetchedLatLng.lng, lat, lng);
+    if(moved < 5) return cachedNearbyRadars;
+  }
+  lastFetchedLatLng = {lat, lng};
+
+  const d = radiusKm / 111; // km -> derece kaba çevrim
+  const south = lat - d, north = lat + d, west = lng - d, east = lng + d;
 
   const query = `
     [out:json][timeout:25];
@@ -400,20 +436,22 @@ async function fetchOSMRadars(routeKey){
       body: 'data=' + encodeURIComponent(query)
     });
     const data = await res.json();
-    const osmRadars = data.elements.map(el => ({
+    cachedNearbyRadars = data.elements.map(el => ({
       lat: el.lat,
       lng: el.lon,
       label: el.tags?.name || "OSM: Sabit radar/EDS",
       type: "sabit",
-      limit: parseInt(el.tags?.maxspeed) || r.speedLimit,
-      source: "OpenStreetMap"
+      limit: parseInt(el.tags?.maxspeed) || ROUTES[currentRouteKey].speedLimit,
     }));
-    console.log(`OSM'den ${osmRadars.length} radar noktası bulundu.`);
-    return osmRadars;
+    console.log(`Yakında ${cachedNearbyRadars.length} radar bulundu (${radiusKm} km çevresinde).`);
+    return cachedNearbyRadars;
   }catch(e){
-    console.warn("OSM verisi çekilemedi, elle girilen liste kullanılacak.", e);
-    return [];
+  if(!window._corsWarned){
+    console.warn("OSM verisi çekilemedi (muhtemelen file:// üzerinden test ediyorsun, GitHub Pages'te düzelecek).", e);
+    window._corsWarned = true;
   }
+  return cachedNearbyRadars;
+}
 }
 async function drawRoute(key){
   const r = ROUTES[key];
@@ -470,8 +508,14 @@ function renderCityChain(key, currentCityName){
   });
 }
 
-function updatePosition(lat, lng, headingDeg, speedKmh){
+async function updatePosition(lat, lng, headingDeg, speedKmh){
   const r = ROUTES[currentRouteKey];
+
+  // yakın radarları arka planda güncelle (rotadan bağımsız, anlık konuma göre)
+  fetchNearbyRadars(lat, lng).then(nearby=>{
+    r.activeRadars = [...r.radars, ...nearby];
+  });
+
   map.panTo([lat,lng], {animate:false});
 
   // haritayı ters yönde döndür ki araç hep "yukarı" baksın
@@ -496,10 +540,25 @@ function updatePosition(lat, lng, headingDeg, speedKmh){
     else if(speedKmh > r.speedLimit){ speedEl.className='value warn'; }
     else{ speedEl.className='value ok'; }
   }
-
-  // en yakın radara mesafe kontrolü
+// mola noktası kontrolü (örn. İsmetpaşa kahvaltı molası)
+  const stopBanner = document.getElementById('stopBanner');
+  if(r.stops && r.stops.length){
+    let nearestStop = null, nearestStopDist = Infinity;
+    r.stops.forEach(s=>{
+      const d = haversineKm(lat,lng,s.lat,s.lng);
+      if(d < nearestStopDist){ nearestStopDist = d; nearestStop = s; }
+    });
+    if(nearestStop && nearestStopDist < 5){
+      stopBanner.classList.add('show');
+      document.getElementById('stopText').textContent = `${nearestStop.name} yaklaşıyor — ${nearestStopDist.toFixed(1)} km (${nearestStop.note})`;
+    } else {
+      stopBanner.classList.remove('show');
+    }
+  }
+  // en yakın radara mesafe kontrolü (elle girilen + OSM'den gelen birleşik liste)
+  const radarList = r.activeRadars || r.radars;
   let nearestRadar = null, nearestRadarDist = Infinity;
-  (r.activeRadars || r.radars).forEach(rd=>{
+  radarList.forEach(rd=>{
     const d = haversineKm(lat,lng,rd.lat,rd.lng);
     if(d < nearestRadarDist){ nearestRadarDist = d; nearestRadar = rd; }
   });
@@ -509,7 +568,7 @@ function updatePosition(lat, lng, headingDeg, speedKmh){
     pulse.classList.add('active');
     banner.classList.add('show');
     const tipEtiket = {sabit:"Sabit Radar", eds:"EDS Kamerası", koridor:"Hız Koridoru"}[nearestRadar.type] || "Denetim Noktası";
-document.getElementById('alertText').textContent = `${tipEtiket}: ${nearestRadar.label} — yaklaşık ${nearestRadarDist.toFixed(1)} km, limit ${nearestRadar.limit} km/s`;
+    document.getElementById('alertText').textContent = `${tipEtiket}: ${nearestRadar.label} — yaklaşık ${nearestRadarDist.toFixed(1)} km, limit ${nearestRadar.limit} km/s`;
     beep(nearestRadarDist);
   } else {
     pulse.classList.remove('active');
