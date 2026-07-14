@@ -510,27 +510,40 @@ function updatePosition(lat, lng, headingDeg, speedKmh){
     banner.classList.add('show');
     const tipEtiket = {sabit:"Sabit Radar", eds:"EDS Kamerası", koridor:"Hız Koridoru"}[nearestRadar.type] || "Denetim Noktası";
 document.getElementById('alertText').textContent = `${tipEtiket}: ${nearestRadar.label} — yaklaşık ${nearestRadarDist.toFixed(1)} km, limit ${nearestRadar.limit} km/s`;
-    beep();
+    beep(nearestRadarDist);
   } else {
     pulse.classList.remove('active');
     banner.classList.remove('show');
   }
 }
 
-function beep(){
-  if(window._lastBeep && Date.now() - window._lastBeep < 4000) return;
+function beep(distanceKm){
+  // Yakınlaştıkça daha sık uyarsın: 1km altı = 2 sn'de bir, üstü = 4 sn'de bir
+  const interval = distanceKm < 1 ? 2000 : 4000;
+  if(window._lastBeep && Date.now() - window._lastBeep < interval) return;
   window._lastBeep = Date.now();
+
   try{
     const ctx = new (window.AudioContext||window.webkitAudioContext)();
-    const o = ctx.createOscillator(); const g = ctx.createGain();
-    o.type='sine'; o.frequency.value=880;
-    o.connect(g); g.connect(ctx.destination);
-    g.gain.setValueAtTime(0.001, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime+0.05);
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.4);
-    o.start(); o.stop(ctx.currentTime+0.45);
+    const beepCount = distanceKm < 1 ? 3 : 2; // yakınken 3 bip, uzaktayken 2 bip
+    let t = ctx.currentTime;
+
+    for(let i=0; i<beepCount; i++){
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'square'; // daha keskin/duyulabilir ses
+      o.frequency.value = distanceKm < 1 ? 1000 : 880; // yakınken daha tiz
+      o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.001, t);
+      g.gain.exponentialRampToValueAtTime(0.35, t + 0.05); // ses seviyesi artırıldı
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+      o.start(t);
+      o.stop(t + 0.4);
+      t += 0.45; // sıradaki bip için zaman ilerlet
+    }
   }catch(e){}
 }
+
 
 // ---------- Gerçek GPS ----------
 function startRealTracking(){
