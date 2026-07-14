@@ -20,4 +20,8 @@ verilerini GPS konumuyla karşılaştırarak çalışır.
 - Geolocation API
 
 ## Durum
+<<<<<<< HEAD
 🚧 Geliştirme aşamasında
+=======
+🚧 Geliştirme aşamasında
+>>>>>>> 1556549e6884729d337def01ef750729d5a4c1ba
