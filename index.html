@@ -393,7 +393,6 @@ let map, routeLine, carDummyPos, watchId, demoInterval;
 let lastLatLng = null, lastHeading = 0;
 const CITY_PASS_RADIUS_KM = 15;      // bu mesafeye girince "şehri geçti" say
 const RADAR_WARN_RADIUS_KM = 1.5;      // bu mesafeye girince uyar
-
 function haversineKm(lat1, lon1, lat2, lon2){
   const R = 6371;
   const dLat = (lat2-lat1) * Math.PI/180;
@@ -406,6 +405,32 @@ function bearing(lat1, lon1, lat2, lon2){
   const y = Math.sin(toRad(lon2-lon1)) * Math.cos(toRad(lat2));
   const x = Math.cos(toRad(lat1))*Math.sin(toRad(lat2)) - Math.sin(toRad(lat1))*Math.cos(toRad(lat2))*Math.cos(toRad(lon2-lon1));
   return (Math.atan2(y,x)*180/Math.PI + 360) % 360;
+}
+
+// --- YENİ: Radarın rotamıza (yolumuza) ne kadar yakın olduğunu ölçen fonksiyonlar ---
+function pointToSegmentDistanceKm(plat, plng, alat, alng, blat, blng){
+  const lat0 = (alat + blat) / 2;
+  const toXY = (lat, lng) => ({
+    x: lng * Math.PI/180 * 6371 * Math.cos(lat0 * Math.PI/180),
+    y: lat * Math.PI/180 * 6371
+  });
+  const P = toXY(plat, plng), A = toXY(alat, alng), B = toXY(blat, blng);
+  const ABx = B.x - A.x, ABy = B.y - A.y;
+  const APx = P.x - A.x, APy = P.y - A.y;
+  const lenSq = ABx*ABx + ABy*ABy;
+  let t = lenSq > 0 ? (APx*ABx + APy*ABy) / lenSq : 0;
+  t = Math.max(0, Math.min(1, t));
+  const closestX = A.x + ABx*t, closestY = A.y + ABy*t;
+  const dx = P.x - closestX, dy = P.y - closestY;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+function distanceToRouteKm(lat, lng, cities){
+  let min = Infinity;
+  for(let i=0; i<cities.length-1; i++){
+    const d = pointToSegmentDistanceKm(lat, lng, cities[i].lat, cities[i].lng, cities[i+1].lat, cities[i+1].lng);
+    if(d < min) min = d;
+  }
+  return min;
 }
 // Bir noktanın, iki nokta arasındaki çizgi parçasına (rota segmentine) olan yaklaşık mesafesi (km)
 function pointToSegmentDistanceKm(plat, plng, alat, alng, blat, blng){
@@ -621,10 +646,6 @@ async function updatePosition(lat, lng, headingDeg, speedKmh){
   let nearestRadar = null, nearestRadarDist = Infinity;
   radarList.forEach(rd=>{
     const d = haversineKm(lat,lng,rd.lat,rd.lng);
-    const radarBearing = bearing(lat,lng,rd.lat,rd.lng);
-    let angleDiff = Math.abs(headingDeg - radarBearing);
-    if(angleDiff > 180) angleDiff = 360 - angleDiff;
-    if(angleDiff > 70) return;
     if(d < nearestRadarDist){ nearestRadarDist = d; nearestRadar = rd; }
   });
 
