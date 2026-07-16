@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#10131A">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Yol Radarı — Baba İçin</title>
@@ -700,6 +703,13 @@ document.getElementById('reverseBtn').addEventListener('click', ()=>{
 });
 initMap();
 updateRouteButtonLabels();
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('service-worker.js').then(()=>{
+      console.log('Service worker kaydedildi, uygulama artık offline da çalışabilir.');
+    }).catch(err=>console.warn('Service worker kaydedilemedi:', err));
+  });
+}
 </script>
 </body>
 </html>
