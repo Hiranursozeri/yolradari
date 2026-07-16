@@ -672,19 +672,15 @@ async function updatePosition(lat, lng, headingDeg, speedKmh){
     document.getElementById('alertText').textContent = `${tipEtiket}: ${nearestRadar.label} — yaklaşık ${nearestRadarDist.toFixed(1)} km, limit ${nearestRadar.limit} km/s`;
 
     // sesli uyari sadece ilk birkac kez calsin
+   // sesli uyari sadece ilk birkac kez calsin
     if(window._beepCountForThisRadar < MAX_BEEPS_PER_RADAR){
-
-      beep(nearestRadarDist);
-      if(window._beepCountForThisRadar < MAX_BEEPS_PER_RADAR){
       beep(nearestRadarDist);
       window._beepCountForThisRadar++;
       if(window._beepCountForThisRadar >= MAX_BEEPS_PER_RADAR){
         window._lastBeepBurstEnd = Date.now();
       }
     }
-      window._beepCountForThisRadar++;
-    }
-  } else {
+    } else {
     // menzil disina cikildi, bir sonraki radar icin sifirdan uyarabilsin
     window._currentAlertRadarId = null;
     pulse.classList.remove('active');
