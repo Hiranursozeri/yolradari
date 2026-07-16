@@ -638,30 +638,36 @@ function startDemo(){
   const demoBtn = document.getElementById('demoBtn');
   demoBtn.textContent = "Demo Modunu Durdur";
 
+  const TICK_MS = 400;
+  const DEMO_SPEED_KMH = 100; // demo'nun sabit "sürüş hızı" (gerçekçi his için)
+
   demoInterval = setInterval(()=>{
     const a = pts[segIdx], b = pts[segIdx+1];
     if(!b){
-      // rota bitti
       clearInterval(demoInterval);
       demoInterval = null;
       demoBtn.textContent = "Demo Modu (test için)";
       document.getElementById('curCity').textContent = `${pts[pts.length-1].name} — Varış noktasına ulaşıldı ✓`;
-      const pulse = document.getElementById('radarPulse');
-      const banner = document.getElementById('alertBanner');
-      pulse.classList.remove('active');
-      banner.classList.remove('show');
+      document.getElementById('radarPulse').classList.remove('active');
+      document.getElementById('alertBanner').classList.remove('show');
       return;
     }
-    t += 0.03;
+
+    // Bu segmentin gerçek uzunluğuna göre, sabit hızda ne kadar ilerleyeceğimizi hesapla
+    const segmentKm = haversineKm(a.lat, a.lng, b.lat, b.lng);
+    const kmPerTick = DEMO_SPEED_KMH * (TICK_MS / 3600000); // km/s -> bu tık'ta kaç km
+    const deltaT = segmentKm > 0 ? kmPerTick / segmentKm : 1;
+
+    t += deltaT;
     if(t >= 1){ t = 0; segIdx++; return; }
+
     const lat = a.lat + (b.lat-a.lat)*t;
     const lng = a.lng + (b.lng-a.lng)*t;
     const hdg = bearing(a.lat,a.lng,b.lat,b.lng);
-    const simSpeed = r.speedLimit + (Math.random()*30 - 10);
+    const simSpeed = DEMO_SPEED_KMH + (Math.random()*20 - 10); // artık gösterilen hız da gerçek harekete yakın
     updatePosition(lat, lng, hdg, simSpeed);
-  }, 400);
+  }, TICK_MS);
 }
-
 // ---------- UI bağlantıları ----------
 document.querySelectorAll('.route-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
