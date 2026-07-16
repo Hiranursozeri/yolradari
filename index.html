@@ -588,50 +588,48 @@ async function updatePosition(lat, lng, headingDeg, speedKmh){
     }
   }
   // en yakın radara mesafe kontrolü (elle girilen + OSM'den gelen birleşik liste)
+ // en yakın radara mesafe kontrolü (elle girilen + OSM'den gelen birleşik liste)
   const radarList = r.activeRadars || r.radars;
   let nearestRadar = null, nearestRadarDist = Infinity;
   radarList.forEach(rd=>{
     const d = haversineKm(lat,lng,rd.lat,rd.lng);
-    // aracın gittiği yön ile radarın bulunduğu yön arasındaki açı farkı
     const radarBearing = bearing(lat,lng,rd.lat,rd.lng);
     let angleDiff = Math.abs(headingDeg - radarBearing);
     if(angleDiff > 180) angleDiff = 360 - angleDiff;
-    // radar, gidiş yönümüzün +-70 derece koninde değilse (yani arkada/yanda kalıyorsa) sayma
     if(angleDiff > 70) return;
     if(d < nearestRadarDist){ nearestRadarDist = d; nearestRadar = rd; }
   });
 
-  const ALERT_DURATION_MS = 8000; // her radar icin en fazla bu kadar sure uyar, sonra sussun
   const pulse = document.getElementById('radarPulse');
   const banner = document.getElementById('alertBanner');
+  const MAX_BEEPS_PER_RADAR = 2; // her radar icin en fazla bu kadar ses cal
 
   if(nearestRadar && nearestRadarDist < RADAR_WARN_RADIUS_KM){
     const radarId = `${nearestRadar.lat.toFixed(4)},${nearestRadar.lng.toFixed(4)}`;
     if(radarId !== window._currentAlertRadarId){
-      // farklı/yeni bir radara giriyoruz, uyarıyı sıfırdan başlat
+      // yeni bir radara girdik, sayaci sifirla
       window._currentAlertRadarId = radarId;
-      window._alertStartTime = Date.now();
+      window._beepCountForThisRadar = 0;
     }
-    const elapsed = Date.now() - window._alertStartTime;
-    if(elapsed < ALERT_DURATION_MS){
-      pulse.classList.add('active');
-      banner.classList.add('show');
-      const tipEtiket = {sabit:"Sabit Radar", eds:"EDS Kamerası", koridor:"Hız Koridoru"}[nearestRadar.type] || "Denetim Noktası";
-      document.getElementById('alertText').textContent = `${tipEtiket}: ${nearestRadar.label} — yaklaşık ${nearestRadarDist.toFixed(1)} km, limit ${nearestRadar.limit} km/s`;
+
+    // gorsel uyari (kirmizi/turuncu banner) menzildeyken hep acik kalsin
+    pulse.classList.add('active');
+    banner.classList.add('show');
+    const tipEtiket = {sabit:"Sabit Radar", eds:"EDS Kamerası", koridor:"Hız Koridoru"}[nearestRadar.type] || "Denetim Noktası";
+    document.getElementById('alertText').textContent = `${tipEtiket}: ${nearestRadar.label} — yaklaşık ${nearestRadarDist.toFixed(1)} km, limit ${nearestRadar.limit} km/s`;
+
+    // sesli uyari sadece ilk birkac kez calsin
+    if(window._beepCountForThisRadar < MAX_BEEPS_PER_RADAR){
       beep(nearestRadarDist);
-    } else {
-      // bu radar için uyarı süresi doldu, aynı radara yakınken tekrar tekrar uyarmasın
-      pulse.classList.remove('active');
-      banner.classList.remove('show');
+      window._beepCountForThisRadar++;
     }
   } else {
-    // menzil dışına çıkıldı, bir sonraki radar için sıfırdan uyarabilsin
+    // menzil disina cikildi, bir sonraki radar icin sifirdan uyarabilsin
     window._currentAlertRadarId = null;
     pulse.classList.remove('active');
     banner.classList.remove('show');
   }
 }
-
 function beep(distanceKm){
   // Yakınlaştıkça daha sık uyarsın: 1km altı = 2 sn'de bir, üstü = 4 sn'de bir
   const interval = distanceKm < 1 ? 2000 : 4000;
