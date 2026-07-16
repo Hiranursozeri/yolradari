@@ -1,6 +1,6 @@
 {
-  "name": "Yol Radarı — Baba İçin",
-  "short_name": "Yol Radarı",
+  "name": "Babayol",
+  "short_name": "Babayol",
   "description": "Bilinen sabit radar noktalarını gösteren ve yaklaşınca uyaran yol güvenliği uygulaması",
   "start_url": "./index.html",
   "display": "standalone",
