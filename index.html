@@ -658,8 +658,8 @@ async function updatePosition(lat, lng, headingDeg, speedKmh){
   const stillInBuffer = !!(nearestRadar && nearestRadarDist < EXIT_RADIUS_KM);
 
   if(inZoneNow){
+    const GLOBAL_SILENCE_MS = 15000; // hangi bolge olursa olsun, iki ses patlamasi arasi en az bu kadar sure gecsin
     if(!window._insideRadarZone){
-      // bolgeye YENI giriyoruz (disaridaydik, simdi girdik) - sifirdan uyar
       window._insideRadarZone = true;
       window._beepCountThisZone = 0;
     }
@@ -667,9 +667,14 @@ async function updatePosition(lat, lng, headingDeg, speedKmh){
     banner.classList.add('show');
     const tipEtiket = {sabit:"Sabit Radar", eds:"EDS Kamerası", koridor:"Hız Koridoru"}[nearestRadar.type] || "Denetim Noktası";
     document.getElementById('alertText').textContent = `${tipEtiket}: ${nearestRadar.label} — yaklaşık ${nearestRadarDist.toFixed(1)} km, limit ${nearestRadar.limit} km/s`;
-    if(window._beepCountThisZone < MAX_BEEPS_PER_ENTRY){
+
+    const globalSilencePassed = !window._lastZoneBeepEnd || (Date.now() - window._lastZoneBeepEnd) > GLOBAL_SILENCE_MS;
+    if(window._beepCountThisZone < MAX_BEEPS_PER_ENTRY && globalSilencePassed){
       beep(nearestRadarDist);
       window._beepCountThisZone++;
+      if(window._beepCountThisZone >= MAX_BEEPS_PER_ENTRY){
+        window._lastZoneBeepEnd = Date.now();
+      }
     }
   } else if(stillInBuffer){
     // tampon bolgedeyiz: gorsel uyari acik kalsin ama yeni bip baslatilmaz
