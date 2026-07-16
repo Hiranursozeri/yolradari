@@ -651,38 +651,32 @@ async function updatePosition(lat, lng, headingDeg, speedKmh){
 
   const pulse = document.getElementById('radarPulse');
   const banner = document.getElementById('alertBanner');
-  const MAX_BEEPS_PER_RADAR = 2; // her radar icin en fazla bu kadar ses cal
+  const MAX_BEEPS_PER_ENTRY = 2;
+  const EXIT_RADIUS_KM = RADAR_WARN_RADIUS_KM * 1.4; // cikis icin biraz genis tampon, cirpinmayi onler
 
-  if(nearestRadar && nearestRadarDist < RADAR_WARN_RADIUS_KM){
-    const radarId = `${nearestRadar.lat.toFixed(4)},${nearestRadar.lng.toFixed(4)}`;
-   const cooldownPassed = !window._lastBeepBurstEnd || (Date.now() - window._lastBeepBurstEnd) > 6000;
-    if(radarId !== window._currentAlertRadarId && cooldownPassed){
-      // gercekten farkli/yeni bir radara girdik VE yeterince zaman gecti, sayaci sifirla
-      window._currentAlertRadarId = radarId;
-      window._beepCountForThisRadar = 0;
-    } else if(radarId !== window._currentAlertRadarId){
-      // radar id degisti ama cooldown suresi dolmadi - ayni radar seti sayilir, susmaya devam et
-      window._currentAlertRadarId = radarId;
+  const inZoneNow = !!(nearestRadar && nearestRadarDist < RADAR_WARN_RADIUS_KM);
+  const stillInBuffer = !!(nearestRadar && nearestRadarDist < EXIT_RADIUS_KM);
+
+  if(inZoneNow){
+    if(!window._insideRadarZone){
+      // bolgeye YENI giriyoruz (disaridaydik, simdi girdik) - sifirdan uyar
+      window._insideRadarZone = true;
+      window._beepCountThisZone = 0;
     }
-
-    // gorsel uyari (kirmizi/turuncu banner) menzildeyken hep acik kalsin
     pulse.classList.add('active');
     banner.classList.add('show');
     const tipEtiket = {sabit:"Sabit Radar", eds:"EDS Kamerası", koridor:"Hız Koridoru"}[nearestRadar.type] || "Denetim Noktası";
     document.getElementById('alertText').textContent = `${tipEtiket}: ${nearestRadar.label} — yaklaşık ${nearestRadarDist.toFixed(1)} km, limit ${nearestRadar.limit} km/s`;
-
-    // sesli uyari sadece ilk birkac kez calsin
-   // sesli uyari sadece ilk birkac kez calsin
-    if(window._beepCountForThisRadar < MAX_BEEPS_PER_RADAR){
+    if(window._beepCountThisZone < MAX_BEEPS_PER_ENTRY){
       beep(nearestRadarDist);
-      window._beepCountForThisRadar++;
-      if(window._beepCountForThisRadar >= MAX_BEEPS_PER_RADAR){
-        window._lastBeepBurstEnd = Date.now();
-      }
+      window._beepCountThisZone++;
     }
-    } else {
-    // menzil disina cikildi, bir sonraki radar icin sifirdan uyarabilsin
-    window._currentAlertRadarId = null;
+  } else if(stillInBuffer){
+    // tampon bolgedeyiz: gorsel uyari acik kalsin ama yeni bip baslatilmaz
+    pulse.classList.add('active');
+    banner.classList.add('show');
+  } else {
+    window._insideRadarZone = false;
     pulse.classList.remove('active');
     banner.classList.remove('show');
   }
