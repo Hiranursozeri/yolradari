@@ -427,21 +427,24 @@ let lastFetchTime = 0;
 let cachedNearbyRadars = [];
 
 async function fetchNearbyRadars(lat, lng, radiusKm = 6){
+ const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+];
+
+async function fetchNearbyRadars(lat, lng, radiusKm = 6){
   const now = Date.now();
-  // en az 8 km hareket ETMİŞ olmalı VE son sorgudan en az 8 saniye geçmiş olmalı
   if(lastFetchedLatLng){
     const moved = haversineKm(lastFetchedLatLng.lat, lastFetchedLatLng.lng, lat, lng);
     if(moved < 8 || (now - lastFetchTime) < 8000) return cachedNearbyRadars;
   }
   lastFetchedLatLng = {lat, lng};
   lastFetchTime = now;
-  // ... (fonksiyonun geri kalanı aynı kalsın)
 
-  const d = radiusKm / 111; // km -> derece kaba çevrim
+  const d = radiusKm / 111;
   const south = lat - d, north = lat + d, west = lng - d, east = lng + d;
-
   const query = `
-    [out:json][timeout:25];
+    [out:json][timeout:20];
     (
       node["highway"="speed_camera"](${south},${west},${north},${east});
       node["enforcement"="maxspeed"](${south},${west},${north},${east});
@@ -449,27 +452,43 @@ async function fetchNearbyRadars(lat, lng, radiusKm = 6){
     out body;
   `;
 
-  try{
-    const res = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      body: 'data=' + encodeURIComponent(query)
-    });
-    const data = await res.json();
-    cachedNearbyRadars = data.elements.map(el => ({
-      lat: el.lat,
-      lng: el.lon,
-      label: el.tags?.name || "OSM: Sabit radar/EDS",
-      type: "sabit",
-      limit: parseInt(el.tags?.maxspeed) || ROUTES[currentRouteKey].speedLimit,
-    }));
-    console.log(`Yakında ${cachedNearbyRadars.length} radar bulundu (${radiusKm} km çevresinde).`);
-    return cachedNearbyRadars;
-  }catch(e){
+  for(const endpoint of OVERPASS_ENDPOINTS){
+    try{
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        body: 'data=' + encodeURIComponent(query)
+      });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const text = await res.text();
+      let data;
+      try{
+        data = JSON.parse(text);
+      }catch(parseErr){
+        throw new Error('Sunucu JSON yerine hata sayfası döndürdü (muhtemelen aşırı yüklü)');
+      }
+
+      cachedNearbyRadars = (data.elements || []).map(el => ({
+        lat: el.lat,
+        lng: el.lon,
+        label: el.tags?.name || "OSM: Sabit radar/EDS",
+        type: "sabit",
+        limit: parseInt(el.tags?.maxspeed) || ROUTES[currentRouteKey].speedLimit,
+      }));
+      console.log(`Yakında ${cachedNearbyRadars.length} radar bulundu (${radiusKm} km çevresinde, ${endpoint} üzerinden).`);
+      return cachedNearbyRadars;
+
+    }catch(e){
+      console.warn(`OSM sorgusu başarısız (${endpoint}):`, e.message);
+      // bu endpoint çalışmadıysa listede sıradaki mirror'ı dene
+    }
+  }
+
   if(!window._corsWarned){
-    console.warn("OSM verisi çekilemedi (muhtemelen file:// üzerinden test ediyorsun, GitHub Pages'te düzelecek).", e);
+    console.warn("Hiçbir OSM sunucusuna ulaşılamadı (file:// üzerinden test ediyor olabilirsin, ya da tüm Overpass mirror'ları o an meşgul).");
     window._corsWarned = true;
   }
-  return cachedNearbyRadars;
+  return cachedNearbyRadars; // en son bilinen (varsa) veriyi kullan
 }
 }
 function drawRoute(key){
