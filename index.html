@@ -407,6 +407,33 @@ function bearing(lat1, lon1, lat2, lon2){
   const x = Math.cos(toRad(lat1))*Math.sin(toRad(lat2)) - Math.sin(toRad(lat1))*Math.cos(toRad(lat2))*Math.cos(toRad(lon2-lon1));
   return (Math.atan2(y,x)*180/Math.PI + 360) % 360;
 }
+// Bir noktanın, iki nokta arasındaki çizgi parçasına (rota segmentine) olan yaklaşık mesafesi (km)
+function pointToSegmentDistanceKm(plat, plng, alat, alng, blat, blng){
+  const lat0 = (alat + blat) / 2;
+  const toXY = (lat, lng) => ({
+    x: lng * Math.PI/180 * 6371 * Math.cos(lat0 * Math.PI/180),
+    y: lat * Math.PI/180 * 6371
+  });
+  const P = toXY(plat, plng), A = toXY(alat, alng), B = toXY(blat, blng);
+  const ABx = B.x - A.x, ABy = B.y - A.y;
+  const APx = P.x - A.x, APy = P.y - A.y;
+  const lenSq = ABx*ABx + ABy*ABy;
+  let t = lenSq > 0 ? (APx*ABx + APy*ABy) / lenSq : 0;
+  t = Math.max(0, Math.min(1, t));
+  const closestX = A.x + ABx*t, closestY = A.y + ABy*t;
+  const dx = P.x - closestX, dy = P.y - closestY;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+
+// Bir noktanın, tüm rotaya (şehir zincirinin oluşturduğu çizgiye) olan en yakın mesafesi (km)
+function distanceToRouteKm(lat, lng, cities){
+  let min = Infinity;
+  for(let i=0; i<cities.length-1; i++){
+    const d = pointToSegmentDistanceKm(lat, lng, cities[i].lat, cities[i].lng, cities[i+1].lat, cities[i+1].lng);
+    if(d < min) min = d;
+  }
+  return min;
+}
 
 function initMap(){
   map = L.map('map', {zoomControl:false, attributionControl:false, dragging:false, scrollWheelZoom:false});
@@ -540,8 +567,10 @@ async function updatePosition(lat, lng, headingDeg, speedKmh){
   const r = ROUTES[currentRouteKey];
 
   // yakın radarları arka planda güncelle (rotadan bağımsız, anlık konuma göre)
+  const ROUTE_CORRIDOR_KM = 0.4; // rotadan bu mesafeden uzak radarlari tamamen yok say
   fetchNearbyRadars(lat, lng).then(nearby=>{
-    r.activeRadars = [...r.radars, ...nearby];
+    const onRouteOnly = nearby.filter(rd => distanceToRouteKm(rd.lat, rd.lng, r.cities) < ROUTE_CORRIDOR_KM);
+    r.activeRadars = [...r.radars, ...onRouteOnly];
   });
 
   map.panTo([lat,lng], {animate:false});
@@ -587,7 +616,6 @@ async function updatePosition(lat, lng, headingDeg, speedKmh){
       stopBanner.classList.remove('show');
     }
   }
-  // en yakın radara mesafe kontrolü (elle girilen + OSM'den gelen birleşik liste)
  // en yakın radara mesafe kontrolü (elle girilen + OSM'den gelen birleşik liste)
   const radarList = r.activeRadars || r.radars;
   let nearestRadar = null, nearestRadarDist = Infinity;
@@ -606,10 +634,14 @@ async function updatePosition(lat, lng, headingDeg, speedKmh){
 
   if(nearestRadar && nearestRadarDist < RADAR_WARN_RADIUS_KM){
     const radarId = `${nearestRadar.lat.toFixed(4)},${nearestRadar.lng.toFixed(4)}`;
-    if(radarId !== window._currentAlertRadarId){
-      // yeni bir radara girdik, sayaci sifirla
+   const cooldownPassed = !window._lastBeepBurstEnd || (Date.now() - window._lastBeepBurstEnd) > 6000;
+    if(radarId !== window._currentAlertRadarId && cooldownPassed){
+      // gercekten farkli/yeni bir radara girdik VE yeterince zaman gecti, sayaci sifirla
       window._currentAlertRadarId = radarId;
       window._beepCountForThisRadar = 0;
+    } else if(radarId !== window._currentAlertRadarId){
+      // radar id degisti ama cooldown suresi dolmadi - ayni radar seti sayilir, susmaya devam et
+      window._currentAlertRadarId = radarId;
     }
 
     // gorsel uyari (kirmizi/turuncu banner) menzildeyken hep acik kalsin
@@ -620,7 +652,15 @@ async function updatePosition(lat, lng, headingDeg, speedKmh){
 
     // sesli uyari sadece ilk birkac kez calsin
     if(window._beepCountForThisRadar < MAX_BEEPS_PER_RADAR){
+
       beep(nearestRadarDist);
+      if(window._beepCountForThisRadar < MAX_BEEPS_PER_RADAR){
+      beep(nearestRadarDist);
+      window._beepCountForThisRadar++;
+      if(window._beepCountForThisRadar >= MAX_BEEPS_PER_RADAR){
+        window._lastBeepBurstEnd = Date.now();
+      }
+    }
       window._beepCountForThisRadar++;
     }
   } else {
