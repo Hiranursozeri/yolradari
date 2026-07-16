@@ -392,7 +392,7 @@ let currentRouteKey = "ordu";
 let map, routeLine, carDummyPos, watchId, demoInterval;
 let lastLatLng = null, lastHeading = 0;
 const CITY_PASS_RADIUS_KM = 15;      // bu mesafeye girince "şehri geçti" say
-const RADAR_WARN_RADIUS_KM = 3;      // bu mesafeye girince uyar
+const RADAR_WARN_RADIUS_KM = 1.5;      // bu mesafeye girince uyar
 
 function haversineKm(lat1, lon1, lat2, lon2){
   const R = 6371;
@@ -426,7 +426,7 @@ let lastFetchedLatLng = null;
 let lastFetchTime = 0;
 let cachedNearbyRadars = [];
 
-async function fetchNearbyRadars(lat, lng, radiusKm = 15){
+async function fetchNearbyRadars(lat, lng, radiusKm = 6){
   const now = Date.now();
   // en az 8 km hareket ETMİŞ olmalı VE son sorgudan en az 8 saniye geçmiş olmalı
   if(lastFetchedLatLng){
@@ -573,6 +573,12 @@ async function updatePosition(lat, lng, headingDeg, speedKmh){
   let nearestRadar = null, nearestRadarDist = Infinity;
   radarList.forEach(rd=>{
     const d = haversineKm(lat,lng,rd.lat,rd.lng);
+    // aracın gittiği yön ile radarın bulunduğu yön arasındaki açı farkı
+    const radarBearing = bearing(lat,lng,rd.lat,rd.lng);
+    let angleDiff = Math.abs(headingDeg - radarBearing);
+    if(angleDiff > 180) angleDiff = 360 - angleDiff;
+    // radar, gidiş yönümüzün +-70 derece koninde değilse (yani arkada/yanda kalıyorsa) sayma
+    if(angleDiff > 70) return;
     if(d < nearestRadarDist){ nearestRadarDist = d; nearestRadar = rd; }
   });
 
