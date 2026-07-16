@@ -594,6 +594,7 @@ async function updatePosition(lat, lng, headingDeg, speedKmh){
   const ROUTE_CORRIDOR_KM = 0.4; // rotadan bu mesafeden uzak radarlari tamamen yok say
   fetchNearbyRadars(lat, lng).then(nearby=>{
     const onRouteOnly = nearby.filter(rd => distanceToRouteKm(rd.lat, rd.lng, r.cities) < ROUTE_CORRIDOR_KM);
+    console.log(`Rota uzerinde ${onRouteOnly.length} radar noktasi (koridor: ${ROUTE_CORRIDOR_KM*1000}m)`, onRouteOnly.map(x=>`${x.lat.toFixed(4)},${x.lng.toFixed(4)}`));
     r.activeRadars = [...r.radars, ...onRouteOnly];
   });
 
