@@ -537,13 +537,17 @@ async function updatePosition(lat, lng, headingDeg, speedKmh){
   document.getElementById('curCity').textContent = nearestCity ? `${nearestCity.name} civarı (${nearestDist.toFixed(1)} km)` : '—';
   renderCityChain(currentRouteKey, lastPassed ? lastPassed.name : null);
 
-  // hız / limit
-  document.getElementById('curLimit').textContent = r.speedLimit + ' km/s';
+  // hız / limit — şehre yakınsak (yerleşim yeri) limit düşer, açık yolda rotanın normal limiti geçerli
+  const URBAN_LIMIT_KM = 3;   // şehre bu mesafeden yakınsak "yerleşim yeri" say
+  const URBAN_SPEED_LIMIT = 50;
+  const currentLimit = (nearestDist < URBAN_LIMIT_KM) ? URBAN_SPEED_LIMIT : r.speedLimit;
+
+  document.getElementById('curLimit').textContent = currentLimit + ' km/s';
   const speedEl = document.getElementById('curSpeed');
   if(speedKmh != null){
     speedEl.textContent = Math.round(speedKmh) + ' km/s';
-    if(speedKmh > r.speedLimit + 10){ speedEl.className='value danger'; }
-    else if(speedKmh > r.speedLimit){ speedEl.className='value warn'; }
+    if(speedKmh > currentLimit + 10){ speedEl.className='value danger'; }
+    else if(speedKmh > currentLimit){ speedEl.className='value warn'; }
     else{ speedEl.className='value ok'; }
   }
 // mola noktası kontrolü (örn. İsmetpaşa kahvaltı molası)
