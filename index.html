@@ -575,17 +575,33 @@ async function updatePosition(lat, lng, headingDeg, speedKmh){
     const d = haversineKm(lat,lng,rd.lat,rd.lng);
     if(d < nearestRadarDist){ nearestRadarDist = d; nearestRadar = rd; }
   });
-  if(!window._lastAlertShown) window._lastAlertShown = 0;
+
+  const ALERT_DURATION_MS = 8000; // her radar icin en fazla bu kadar sure uyar, sonra sussun
   const pulse = document.getElementById('radarPulse');
   const banner = document.getElementById('alertBanner');
- if(nearestRadar && nearestRadarDist < RADAR_WARN_RADIUS_KM){
-    pulse.classList.add('active');
-    banner.classList.add('show');
-    window._lastAlertShown = Date.now();
-    const tipEtiket = {sabit:"Sabit Radar", eds:"EDS Kamerası", koridor:"Hız Koridoru"}[nearestRadar.type] || "Denetim Noktası";
-    document.getElementById('alertText').textContent = `${tipEtiket}: ${nearestRadar.label} — yaklaşık ${nearestRadarDist.toFixed(1)} km, limit ${nearestRadar.limit} km/s`;
-    beep(nearestRadarDist);
-  } else if(Date.now() - window._lastAlertShown > 6000){
+
+  if(nearestRadar && nearestRadarDist < RADAR_WARN_RADIUS_KM){
+    const radarId = `${nearestRadar.lat.toFixed(4)},${nearestRadar.lng.toFixed(4)}`;
+    if(radarId !== window._currentAlertRadarId){
+      // farklı/yeni bir radara giriyoruz, uyarıyı sıfırdan başlat
+      window._currentAlertRadarId = radarId;
+      window._alertStartTime = Date.now();
+    }
+    const elapsed = Date.now() - window._alertStartTime;
+    if(elapsed < ALERT_DURATION_MS){
+      pulse.classList.add('active');
+      banner.classList.add('show');
+      const tipEtiket = {sabit:"Sabit Radar", eds:"EDS Kamerası", koridor:"Hız Koridoru"}[nearestRadar.type] || "Denetim Noktası";
+      document.getElementById('alertText').textContent = `${tipEtiket}: ${nearestRadar.label} — yaklaşık ${nearestRadarDist.toFixed(1)} km, limit ${nearestRadar.limit} km/s`;
+      beep(nearestRadarDist);
+    } else {
+      // bu radar için uyarı süresi doldu, aynı radara yakınken tekrar tekrar uyarmasın
+      pulse.classList.remove('active');
+      banner.classList.remove('show');
+    }
+  } else {
+    // menzil dışına çıkıldı, bir sonraki radar için sıfırdan uyarabilsin
+    window._currentAlertRadarId = null;
     pulse.classList.remove('active');
     banner.classList.remove('show');
   }
