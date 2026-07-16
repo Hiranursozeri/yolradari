@@ -342,7 +342,7 @@ ordu: {
     {name:"Ordu", lat:40.9839, lng:37.8764},
   ],
   stops: [
-    {name:"İsmetpaşa Kahvaltı Molası", lat:40.7975, lng:32.2058, note:"Gerede civarında ünlü kahvaltıcılar"},
+    {name:"İsmetpaşa Kahvaltı Molası", lat:40.7975, lng:32.2058, note:"Gerede civarı, 40-50 dk. mola için ideal."},
   ],
   radars: [
     {lat:41.0000, lng:28.7200, label:"Avcılar–Beylikdüzü D-100 hız koridoru", type:"koridor", limit:90},
@@ -571,7 +571,7 @@ async function updatePosition(lat, lng, headingDeg, speedKmh){
   if(!window._lastAlertShown) window._lastAlertShown = 0;
   const pulse = document.getElementById('radarPulse');
   const banner = document.getElementById('alertBanner');
-  if(nearestRadar && nearestRadarDist < RADAR_WARN_RADIUS_KM){
+ if(nearestRadar && nearestRadarDist < RADAR_WARN_RADIUS_KM){
     pulse.classList.add('active');
     banner.classList.add('show');
     window._lastAlertShown = Date.now();
@@ -582,6 +582,7 @@ async function updatePosition(lat, lng, headingDeg, speedKmh){
     pulse.classList.remove('active');
     banner.classList.remove('show');
   }
+}
 
 function beep(distanceKm){
   // Yakınlaştıkça daha sık uyarsın: 1km altı = 2 sn'de bir, üstü = 4 sn'de bir
